@@ -3,3 +3,4 @@ yt-dlp
 gunicorn
 python-dotenv
 Flask-Limiter   # optional, for rate-limiting
+imageio-ffmpeg
