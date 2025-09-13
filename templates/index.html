@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>YouTube Downloader</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex items-center justify-center">
+  <div class="w-full max-w-2xl p-8 bg-slate-800 rounded-2xl shadow-xl">
+    <h1 class="text-2xl font-bold mb-4">YouTube Downloader</h1>
+
+    <div class="space-y-3">
+      <input id="url" class="w-full p-2 rounded text-black" placeholder="Paste YouTube URL here" />
+      <button id="check" class="bg-red-500 px-4 py-2 rounded font-semibold">Check formats</button>
+
+      <div id="info" class="mt-4"></div>
+      <div id="formats" class="mt-2 space-y-2"></div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('check').addEventListener('click', async () => {
+      const url = document.getElementById('url').value.trim();
+      if (!url) return alert('Enter URL');
+      const form = new URLSearchParams();
+      form.append('url', url);
+      document.getElementById('formats').innerHTML = 'Loading...';
+      const res = await fetch('/api/formats', { method: 'POST', body: form });
+      const data = await res.json();
+      if (data.error) {
+        document.getElementById('formats').innerText = 'Error: ' + data.error;
+        return;
+      }
+      document.getElementById('info').innerHTML = `<div class="font-semibold">${data.title || ''}</div>`;
+      const container = document.getElementById('formats'); container.innerHTML = '';
+
+      for (const f of data.formats) {
+        const label = document.createElement('label');
+        label.className = 'flex items-center gap-3 p-2 bg-slate-700 rounded';
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = 'format';
+        radio.value = f.format_id;
+        label.appendChild(radio);
+        const txt = document.createElement('div');
+        txt.innerHTML = `<div>${f.format_id} — ${f.ext} ${f.height ? (f.height + 'p') : ''} ${f.acodec === 'none' ? '(video)' : f.vcodec === 'none' ? '(audio)' : ''}</div>`;
+        label.appendChild(txt);
+        container.appendChild(label);
+      }
+
+      const downloadBtn = document.createElement('button');
+      downloadBtn.className = 'mt-3 bg-green-500 px-4 py-2 rounded';
+      downloadBtn.innerText = 'Download selected';
+      downloadBtn.onclick = () => {
+        const selected = document.querySelector('input[name="format"]:checked');
+        if (!selected) return alert('Select a format');
+        // create form to trigger browser download
+        const f = document.createElement('form');
+        f.method = 'POST'; f.action = '/download';
+        const in1 = document.createElement('input');
+        in1.type = 'hidden'; in1.name = 'url'; in1.value = url;
+        const in2 = document.createElement('input');
+        in2.type = 'hidden'; in2.name = 'format_id'; in2.value = selected.value;
+        f.appendChild(in1); f.appendChild(in2);
+        document.body.appendChild(f); f.submit();
+      };
+      container.appendChild(downloadBtn);
+    });
+  </script>
+</body>
+</html>
