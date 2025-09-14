@@ -1,70 +1,116 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>YouTube Downloader</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body {
+      background: #f8f9fa;
+    }
+    .card {
+      border-radius: 1rem;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+    .thumbnail {
+      max-height: 200px;
+      object-fit: cover;
+      border-radius: 0.75rem;
+    }
+  </style>
 </head>
-<body class="bg-slate-900 text-white min-h-screen flex items-center justify-center">
-  <div class="w-full max-w-2xl p-8 bg-slate-800 rounded-2xl shadow-xl">
-    <h1 class="text-2xl font-bold mb-4">YouTube Downloader</h1>
+<body>
+  <div class="container py-5">
+    <div class="text-center mb-4">
+      <h1 class="fw-bold"><i class="bi bi-download"></i> YouTube Downloader</h1>
+      <p class="text-muted">Download video or audio in your preferred quality</p>
+    </div>
 
-    <div class="space-y-3">
-      <input id="url" class="w-full p-2 rounded text-black" placeholder="Paste YouTube URL here" />
-      <button id="check" class="bg-red-500 px-4 py-2 rounded font-semibold">Check formats</button>
+    <!-- URL Form -->
+    <div class="card p-4 mb-4">
+      <form id="urlForm">
+        <div class="input-group">
+          <input type="url" name="url" class="form-control" placeholder="Paste YouTube link here..." required>
+          <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i> Fetch Formats</button>
+        </div>
+      </form>
+    </div>
 
-      <div id="info" class="mt-4"></div>
-      <div id="formats" class="mt-2 space-y-2"></div>
+    <!-- Video Info & Formats -->
+    <div id="videoSection" class="card p-4 d-none">
+      <div class="row">
+        <div class="col-md-4 text-center mb-3 mb-md-0">
+          <img id="thumbnail" class="thumbnail img-fluid" alt="Thumbnail">
+        </div>
+        <div class="col-md-8">
+          <h4 id="title"></h4>
+          <form id="downloadForm" method="POST" action="/download">
+            <input type="hidden" name="url" id="downloadUrl">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Choose Format:</label>
+              <select name="format_id" id="formatSelect" class="form-select" required></select>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" name="audio" value="1" id="audioCheck">
+              <label class="form-check-label" for="audioCheck">Convert to MP3 (audio only)</label>
+            </div>
+            <button class="btn btn-success" type="submit"><i class="bi bi-download"></i> Download</button>
+          </form>
+        </div>
+      </div>
     </div>
   </div>
 
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    document.getElementById('check').addEventListener('click', async () => {
-      const url = document.getElementById('url').value.trim();
-      if (!url) return alert('Enter URL');
-      const form = new URLSearchParams();
-      form.append('url', url);
-      document.getElementById('formats').innerHTML = 'Loading...';
-      const res = await fetch('/api/formats', { method: 'POST', body: form });
-      const data = await res.json();
-      if (data.error) {
-        document.getElementById('formats').innerText = 'Error: ' + data.error;
-        return;
-      }
-      document.getElementById('info').innerHTML = `<div class="font-semibold">${data.title || ''}</div>`;
-      const container = document.getElementById('formats'); container.innerHTML = '';
+    const urlForm = document.getElementById("urlForm");
+    const videoSection = document.getElementById("videoSection");
+    const titleEl = document.getElementById("title");
+    const thumbEl = document.getElementById("thumbnail");
+    const formatSelect = document.getElementById("formatSelect");
+    const downloadUrl = document.getElementById("downloadUrl");
 
-      for (const f of data.formats) {
-        const label = document.createElement('label');
-        label.className = 'flex items-center gap-3 p-2 bg-slate-700 rounded';
-        const radio = document.createElement('input');
-        radio.type = 'radio';
-        radio.name = 'format';
-        radio.value = f.format_id;
-        label.appendChild(radio);
-        const txt = document.createElement('div');
-        txt.innerHTML = `<div>${f.format_id} — ${f.ext} ${f.height ? (f.height + 'p') : ''} ${f.acodec === 'none' ? '(video)' : f.vcodec === 'none' ? '(audio)' : ''}</div>`;
-        label.appendChild(txt);
-        container.appendChild(label);
-      }
+    urlForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData(urlForm);
+      const url = formData.get("url");
 
-      const downloadBtn = document.createElement('button');
-      downloadBtn.className = 'mt-3 bg-green-500 px-4 py-2 rounded';
-      downloadBtn.innerText = 'Download selected';
-      downloadBtn.onclick = () => {
-        const selected = document.querySelector('input[name="format"]:checked');
-        if (!selected) return alert('Select a format');
-        // create form to trigger browser download
-        const f = document.createElement('form');
-        f.method = 'POST'; f.action = '/download';
-        const in1 = document.createElement('input');
-        in1.type = 'hidden'; in1.name = 'url'; in1.value = url;
-        const in2 = document.createElement('input');
-        in2.type = 'hidden'; in2.name = 'format_id'; in2.value = selected.value;
-        f.appendChild(in1); f.appendChild(in2);
-        document.body.appendChild(f); f.submit();
-      };
-      container.appendChild(downloadBtn);
+      // Reset UI
+      videoSection.classList.add("d-none");
+      formatSelect.innerHTML = `<option>Loading...</option>`;
+
+      try {
+        const res = await fetch("/api/formats", { method: "POST", body: formData });
+        const data = await res.json();
+
+        if (data.error) {
+          alert("Error: " + data.error);
+          return;
+        }
+
+        titleEl.textContent = data.title || "No title";
+        thumbEl.src = data.thumbnail || "";
+        downloadUrl.value = url;
+
+        formatSelect.innerHTML = "";
+        data.formats.forEach(f => {
+          const option = document.createElement("option");
+          const quality = f.height ? `${f.height}p` : (f.acodec !== "none" ? "Audio" : "Unknown");
+          const size = f.filesize ? ` (${(f.filesize/1024/1024).toFixed(1)} MB)` : "";
+          option.value = f.format_id;
+          option.textContent = `${quality} - ${f.ext.toUpperCase()} ${size}`;
+          formatSelect.appendChild(option);
+        });
+
+        videoSection.classList.remove("d-none");
+      } catch (err) {
+        alert("Failed to fetch formats: " + err.message);
+      }
     });
   </script>
 </body>
