@@ -8,6 +8,9 @@ app = Flask(__name__)
 DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
+# ✅ Path to cookies.txt
+COOKIE_FILE = os.path.join(os.path.dirname(__file__), "cookies.txt")
+
 # Home page
 @app.route('/')
 def index():
@@ -20,7 +23,11 @@ def list_formats():
     if not url:
         return jsonify({'error': 'No URL provided'}), 400
 
-    ydl_opts = { 'skip_download': True, 'quiet': True }
+    ydl_opts = { 
+        'skip_download': True, 
+        'quiet': True,
+        'cookiefile': COOKIE_FILE   # ✅ use cookies
+    }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
@@ -29,7 +36,6 @@ def list_formats():
 
     formats = []
     for f in info.get('formats', []):
-        # Build a simple lightweight format record
         formats.append({
             'format_id': f.get('format_id'),
             'ext': f.get('ext'),
@@ -37,11 +43,10 @@ def list_formats():
             'vcodec': f.get('vcodec'),
             'height': f.get('height'),
             'width': f.get('width'),
-            'filesize': f.get('filesize'),  # may be None
+            'filesize': f.get('filesize'),
             'format_note': f.get('format_note'),
         })
 
-    # Optionally filter duplicates and sort (keep unique format_id)
     seen = set()
     uniq = []
     for f in formats:
@@ -50,7 +55,6 @@ def list_formats():
         seen.add(f['format_id'])
         uniq.append(f)
 
-    # sort by height (None -> -1)
     uniq.sort(key=lambda x: (x['height'] or -1), reverse=True)
 
     return jsonify({
@@ -59,12 +63,12 @@ def list_formats():
         'formats': uniq,
     })
 
-# Download endpoint (form POST). Browser will receive a downloadable file.
+# Download endpoint
 @app.route('/download', methods=['POST'])
 def download():
     url = request.form.get('url')
-    format_id = request.form.get('format_id')  # choose from /api/formats
-    convert_audio = request.form.get('audio') == '1'  # optional: convert to mp3
+    format_id = request.form.get('format_id')
+    convert_audio = request.form.get('audio') == '1'
 
     if not url or not format_id:
         return "Missing url or format_id", 400
@@ -75,13 +79,13 @@ def download():
     ydl_opts = {
         'format': format_id,
         'outtmpl': outtmpl,
-        'merge_output_format': 'mp4',  # for video merges
+        'merge_output_format': 'mp4',
         'quiet': True,
         'no_warnings': True,
+        'cookiefile': COOKIE_FILE   # ✅ use cookies
     }
 
     if convert_audio:
-        # extract audio to mp3
         ydl_opts['format'] = format_id
         ydl_opts['postprocessors'] = [{
             'key': 'FFmpegExtractAudio',
@@ -95,7 +99,6 @@ def download():
     except Exception as e:
         return f"Download error: {e}", 500
 
-    # find produced file (matching temp_id.*)
     files = glob.glob(os.path.join(DOWNLOAD_DIR, f"{temp_id}.*"))
     if not files:
         return "No file produced", 500
