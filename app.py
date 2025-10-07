@@ -8,7 +8,7 @@ app = Flask(__name__)
 DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-# ✅ Path to cookies.txt
+# Path to cookies.txt
 COOKIE_FILE = os.path.join(os.path.dirname(__file__), "cookies.txt")
 
 # Home page
