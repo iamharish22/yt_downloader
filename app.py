@@ -11,7 +11,7 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 # Path to cookies.txt
 COOKIE_FILE = os.path.join(os.path.dirname(__file__), "cookies.txt")
 
-# Home page
+#Home page
 @app.route('/')
 def index():
     return render_template('index.html')
